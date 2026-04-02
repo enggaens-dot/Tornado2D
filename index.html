@@ -3,334 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tornado Tactical Strike</title>
+    <title>Tornado Tactical Strike PRO</title>
     <style>
         :root {
             --neon-blue: #00f2ff;
             --neon-red: #ff004c;
-            --hud-bg: rgba(0, 20, 40, 0.8);
+            --hud-green: #00ff41;
+            --hud-bg: rgba(0, 10, 20, 0.85);
         }
         body {
-            margin: 0; padding: 0; background: #050505;
-            color: white; font-family: 'Courier New', Courier, monospace;
+            margin: 0; padding: 0; background: #020205;
+            color: white; font-family: 'Orbitron', 'Courier New', monospace;
             overflow: hidden; touch-action: none;
         }
-        #game-container { position: relative; width: 100vw; height: 100vh; }
-        canvas { display: block; background: linear-gradient(to bottom, #0a0a1a, #1a1a2e); }
+        canvas { display: block; }
 
-        /* HUD */
-        .hud {
+        /* Modern HUD */
+        #hud {
             position: absolute; top: 20px; left: 20px;
             background: var(--hud-bg); padding: 15px;
-            border-left: 4px solid var(--neon-blue); border-radius: 0 10px 10px 0;
-            pointer-events: none;
+            border: 1px solid var(--hud-green); border-radius: 5px;
+            pointer-events: none; min-width: 200px;
         }
-        .stats { font-size: 1.2rem; margin-bottom: 5px; color: var(--neon-blue); }
-
-        /* Shop UI */
+        .bar-container {
+            width: 100%; height: 10px; background: #111; margin-top: 5px; border: 1px solid #444;
+        }
+        #bomb-bar { width: 100%; height: 100%; background: var(--neon-blue); transition: width 0.1s; }
+        
         #shop-ui {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: var(--hud-bg); border: 2px solid var(--neon-blue);
-            padding: 30px; border-radius: 15px; display: none; text-align: center;
-            backdrop-filter: blur(10px); z-index: 100;
+            padding: 40px; border-radius: 20px; display: none; text-align: center;
+            backdrop-filter: blur(15px); z-index: 100; box-shadow: 0 0 50px rgba(0, 242, 255, 0.3);
         }
-        .shop-item {
-            background: rgba(255, 255, 255, 0.1); padding: 10px; margin: 10px 0;
-            border-radius: 5px; cursor: pointer; transition: 0.3s;
+        .shop-btn {
+            background: rgba(34, 211, 238, 0.2); border: 1px solid var(--neon-blue);
+            color: white; padding: 15px 30px; margin: 10px; cursor: pointer; font-weight: bold;
         }
-        .shop-item:hover { background: var(--neon-blue); color: black; }
+        .shop-btn:hover { background: var(--neon-blue); color: black; }
 
-        /* Controls Display */
-        #controls-info {
-            position: absolute; bottom: 20px; right: 20px;
-            background: var(--hud-bg); padding: 10px; border-radius: 8px;
-            font-size: 0.8rem; display: none; opacity: 0.7;
-        }
-
-        /* Mobile Joystick Area */
-        #joystick-container {
-            position: absolute; bottom: 50px; left: 50px;
-            width: 120px; height: 120px; background: rgba(255,255,255,0.05);
-            border-radius: 50%; display: none; border: 1px solid rgba(255,255,255,0.2);
-        }
-        #joystick-knob {
-            position: absolute; width: 50px; height: 50px;
-            background: var(--neon-blue); border-radius: 50%;
-            top: 35px; left: 35px; opacity: 0.5;
-        }
-        #fire-btn {
-            position: absolute; bottom: 50px; right: 50px;
-            width: 80px; height: 80px; background: var(--neon-red);
-            border-radius: 50%; display: none; opacity: 0.6;
-            justify-content: center; align-items: center; font-weight: bold;
-        }
-        #shop-btn {
-            position: absolute; top: 20px; right: 20px;
-            background: var(--neon-blue); color: black; padding: 10px;
-            border-radius: 5px; font-weight: bold; cursor: pointer;
+        #controls {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            color: var(--hud-green); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-        
-        <div class="hud">
-            <div class="stats">CREDITS: <span id="score">0</span></div>
-            <div id="weapon-status" style="font-size: 0.8rem;">WEAPON: MAUSER 27MM</div>
-        </div>
-
-        <div id="shop-btn" onclick="toggleShop()">SHOP (P)</div>
-
-        <div id="shop-ui">
-            <h2>TORNADO ARMORY</h2>
-            <div class="shop-item" onclick="buyWeapon('bombs')">MK82 BOMBS (500 CREDITS)</div>
-            <div class="shop-item" onclick="buyWeapon('speed')">ENGINE UPGRADE (300 CREDITS)</div>
-            <button onclick="toggleShop()" style="margin-top: 20px;">BACK TO COCKPIT</button>
-        </div>
-
-        <div id="controls-info">
-            WASD / Arrows: FLYING<br>
-            SPACE: MAUSER CANNON<br>
-            B: DROP BOMB<br>
-            P: SHOP
-        </div>
-
-        <div id="joystick-container"><div id="joystick-knob"></div></div>
-        <div id="fire-btn">FIRE</div>
+    <div id="hud">
+        <div style="color: var(--hud-green); font-weight: bold;">[ TACTICAL DISPLAY ]</div>
+        <div style="margin-top: 10px;">CREDITS: <span id="score">0</span></div>
+        <div style="font-size: 0.7rem; margin-top: 10px;">BOMB RELOAD</div>
+        <div class="bar-container"><div id="bomb-bar"></div></div>
     </div>
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    <div id="shop-ui">
+        <h1 style="color: var(--neon-blue)">MAINTENANCE HANGAR</h1>
+        <p>Wähle deine Bewaffnung:</p>
+        <button class="shop-btn" onclick="buy('bombs')">MK82 CLUSTER BOMBS (500 CR)</button>
+        <button class="shop-btn" onclick="toggleShop()">RETURN TO MISSION</button>
+    </div>
 
-    // Game State
+    <div id="controls">W/S: Pitch | A/D: Speed | Space: Cannon | B: Bomb | P: Hangar</div>
+
+    <canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Game Variables
     let score = 0;
     let isShopOpen = false;
-    let inputMode = 'keyboard'; // Default
     let hasBombs = false;
+    let bombCooldown = 0;
+    const BOMB_MAX_COOLDOWN = 120; // Frames
 
-    // Tornado Object
-    const tornado = {
-        x: 150, y: 300, w: 80, h: 30,
-        speed: 5, vy: 0, vx: 0,
+    // Input
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('keydown', e => { if(e.code === 'KeyP') toggleShop(); });
+
+    // Game Objects
+    const jet = {
+        x: 200, y: 300, 
+        w: 120, h: 40,
+        angle: 0, // Neigung in Radianten
+        speed: 6,
+        targetAngle: 0,
+        update() {
+            // Steuerung der Neigung
+            if(keys['ArrowUp'] || keys['KeyW']) this.targetAngle = -0.4;
+            else if(keys['ArrowDown'] || keys['KeyS']) this.targetAngle = 0.4;
+            else this.targetAngle = 0;
+
+            // Smoother Übergang der Neigung
+            this.angle += (this.targetAngle - this.angle) * 0.1;
+            
+            // Höhe anpassen basierend auf Neigung
+            this.y += Math.sin(this.angle) * this.speed;
+
+            // Speed Control
+            if(keys['KeyD']) this.speed = 9;
+            else if(keys['KeyA']) this.speed = 4;
+            else this.speed = 6;
+
+            if(this.y < 50) this.y = 50;
+            if(this.y > canvas.height - 150) this.y = canvas.height - 150;
+
+            if(keys['Space'] && frame % 5 === 0) fireCannon();
+            if(keys['KeyB'] && hasBombs && bombCooldown <= 0) dropBomb();
+        },
         draw() {
-            ctx.fillStyle = '#555'; // Tornado Grau
-            // Body
-            ctx.fillRect(this.x, this.y, this.w, this.h);
-            // Cockpit
-            ctx.fillStyle = varColor('--neon-blue');
-            ctx.fillRect(this.x + 50, this.y + 5, 20, 10);
-            // Wings (Swing Wing Effekt angedeutet)
-            ctx.fillStyle = '#444';
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+
+            // Flugzeug-Schatten
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+
+            // Rumpf (Tornado Shape)
+            ctx.fillStyle = '#4a4e51';
             ctx.beginPath();
-            ctx.moveTo(this.x + 10, this.y);
-            ctx.lineTo(this.x + 40, this.y - 20);
-            ctx.lineTo(this.x + 50, this.y);
+            ctx.moveTo(-50, 0);
+            ctx.lineTo(60, 0);  // Nase
+            ctx.lineTo(50, 10);
+            ctx.lineTo(-40, 15);
+            ctx.closePath();
             ctx.fill();
+
+            // Cockpit
+            ctx.fillStyle = '#00d2ff';
+            ctx.beginPath();
+            ctx.ellipse(30, 2, 15, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Leitwerk
+            ctx.fillStyle = '#3a3e41';
+            ctx.beginPath();
+            ctx.moveTo(-45, 0);
+            ctx.lineTo(-60, -25);
+            ctx.lineTo(-35, 0);
+            ctx.fill();
+
+            ctx.restore();
         }
     };
 
     let bullets = [];
     let bombs = [];
-    let enemies = [];
+    let targets = [];
     let particles = [];
+    let frame = 0;
 
-    // Controls
-    const keys = {};
-    window.addEventListener('keydown', e => { 
-        keys[e.code] = true; 
-        inputMode = 'keyboard'; 
-        document.getElementById('controls-info').style.display = 'block';
-        if(e.code === 'KeyP') toggleShop();
-        if(e.code === 'Space') fireCannon();
-        if(e.code === 'KeyB' && hasBombs) dropBomb();
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    function fireCannon() {
+        bullets.push({
+            x: jet.x + 50, 
+            y: jet.y + 10, 
+            vx: Math.cos(jet.angle) * 20, 
+            vy: Math.sin(jet.angle) * 20,
+            life: 60
+        });
+    }
 
-    // Touch Controls
-    let touchStartX = 0, touchStartY = 0;
-    window.addEventListener('touchstart', e => {
-        inputMode = 'touch';
-        document.getElementById('joystick-container').style.display = 'block';
-        document.getElementById('fire-btn').style.display = 'flex';
-        document.getElementById('controls-info').style.display = 'none';
-    });
+    function dropBomb() {
+        bombs.push({ x: jet.x, y: jet.y + 20, vx: jet.speed, vy: 2 });
+        bombCooldown = BOMB_MAX_COOLDOWN;
+    }
+
+    function spawnTarget() {
+        if(frame % 100 === 0) {
+            targets.push({
+                x: canvas.width + 100,
+                y: canvas.height - 40,
+                type: Math.random() > 0.3 ? 'tank' : 'radar',
+                hp: 1
+            });
+        }
+    }
+
+    function createExplosion(x, y, color = '#ff4400') {
+        for(let i=0; i<20; i++) {
+            particles.push({
+                x, y, 
+                vx: (Math.random()-0.5)*12, 
+                vy: (Math.random()-0.5)*12, 
+                life: 1.0, color
+            });
+        }
+    }
 
     function toggleShop() {
         isShopOpen = !isShopOpen;
         document.getElementById('shop-ui').style.display = isShopOpen ? 'block' : 'none';
     }
 
-    function buyWeapon(type) {
-        if(type === 'bombs' && score >= 500) {
+    function buy(item) {
+        if(item === 'bombs' && score >= 500) {
             score -= 500;
             hasBombs = true;
-            document.getElementById('weapon-status').innerText = "WEAPON: MAUSER + MK82 BOMBS";
-            alert("MK82 BOMBS LOADED!");
-        }
-        updateScore();
-    }
-
-    function fireCannon() {
-        if(isShopOpen) return;
-        bullets.push({x: tornado.x + tornado.w, y: tornado.y + 20, vx: 15, vy: 0});
-    }
-
-    function dropBomb() {
-        if(!hasBombs || isShopOpen) return;
-        bombs.push({x: tornado.x + 30, y: tornado.y + 30, vx: 2, vy: 5});
-    }
-
-    function spawnEnemy() {
-        if(Math.random() < 0.02) {
-            enemies.push({
-                x: canvas.width + 100,
-                y: canvas.height - 60,
-                w: 50, h: 30,
-                type: 'tank',
-                hp: 1
-            });
+            toggleShop();
         }
     }
 
-    function update() {
-        if(isShopOpen) return;
+    function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frame++;
 
-        // Movement Keyboard
-        if(keys['ArrowUp'] || keys['KeyW']) tornado.y -= tornado.speed;
-        if(keys['ArrowDown'] || keys['KeyS']) tornado.y += tornado.speed;
-        if(keys['ArrowLeft'] || keys['KeyA']) tornado.x -= tornado.speed;
-        if(keys['ArrowRight'] || keys['KeyD']) tornado.x += tornado.speed;
+        if(bombCooldown > 0) bombCooldown--;
+        document.getElementById('bomb-bar').style.width = (1 - bombCooldown / BOMB_MAX_COOLDOWN) * 100 + "%";
 
-        // Borders
-        if(tornado.y < 0) tornado.y = 0;
-        if(tornado.y > canvas.height - 40) tornado.y = canvas.height - 40;
+        // Background (Parallax Berge)
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        for(let i=0; i<=canvas.width; i+=100) {
+            let h = Math.sin((i + frame * 2) * 0.002) * 50 + 100;
+            ctx.lineTo(i, canvas.height - h);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.fill();
 
-        // Bullets
+        if(!isShopOpen) {
+            jet.update();
+            spawnTarget();
+        }
+
+        // Draw Ground
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+
+        // Update & Draw Bullets
         bullets.forEach((b, i) => {
-            b.x += b.vx;
-            if(b.x > canvas.width) bullets.splice(i, 1);
+            b.x += b.vx; b.y += b.vy; b.life--;
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(b.x, b.y, 8, 2);
+            if(b.life <= 0) bullets.splice(i, 1);
         });
 
-        // Bombs
+        // Update & Draw Bombs
         bombs.forEach((b, i) => {
-            b.x += b.vx;
-            b.y += b.vy;
-            if(b.y > canvas.height - 30) {
-                createExplosion(b.x, b.y);
-                bombs.splice(i, 1);
-                // Area Damage
-                enemies.forEach((en, ei) => {
-                    if(Math.abs(en.x - b.x) < 100) {
+            b.x += b.vx; b.vy += 0.15; b.y += b.vy;
+            ctx.fillStyle = '#777';
+            ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, 7); ctx.fill();
+            if(b.y > canvas.height - 40) {
+                createExplosion(b.x, b.y, '#ffaa00');
+                targets.forEach((t, ti) => {
+                    if(Math.abs(t.x - b.x) < 80) {
+                        createExplosion(t.x, t.y);
+                        targets.splice(ti, 1);
                         score += 100;
-                        enemies.splice(ei, 1);
                     }
                 });
+                bombs.splice(i, 1);
             }
         });
 
-        // Enemies & Collision
-        enemies.forEach((en, i) => {
-            en.x -= 3;
+        // Targets
+        targets.forEach((t, i) => {
+            t.x -= 4;
+            ctx.fillStyle = t.type === 'tank' ? '#2f3542' : '#57606f';
+            ctx.fillRect(t.x, t.y - 20, 50, 20); // Base
+            if(t.type === 'radar') {
+                ctx.beginPath(); ctx.arc(t.x+25, t.y-30, 15, 0, Math.PI, true); ctx.stroke();
+            }
+
+            // Collision with bullets
             bullets.forEach((b, bi) => {
-                if(b.x > en.x && b.x < en.x + en.w && b.y > en.y && b.y < en.y + en.h) {
-                    createExplosion(en.x, en.y);
-                    enemies.splice(i, 1);
+                if(b.x > t.x && b.x < t.x + 50 && b.y > t.y - 20) {
+                    createExplosion(t.x + 25, t.y - 10);
+                    targets.splice(i, 1);
                     bullets.splice(bi, 1);
                     score += 50;
-                    updateScore();
                 }
             });
-            if(en.x < -100) enemies.splice(i, 1);
+            if(t.x < -100) targets.splice(i, 1);
         });
 
-        spawnEnemy();
-        updateParticles();
-    }
-
-    function createExplosion(x, y) {
-        for(let i=0; i<15; i++) {
-            particles.push({
-                x, y, 
-                vx: (Math.random()-0.5)*10, 
-                vy: (Math.random()-0.5)*10, 
-                life: 1.0,
-                color: Math.random() > 0.5 ? '#ff4400' : '#ffcc00'
-            });
-        }
-    }
-
-    function updateParticles() {
+        // Particles
         particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy;
-            p.life -= 0.02;
-            if(p.life <= 0) particles.splice(i, 1);
-        });
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Ground
-        ctx.fillStyle = '#0f0f0f';
-        ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
-
-        // Draw Particles
-        particles.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
             ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
             ctx.fillRect(p.x, p.y, 4, 4);
+            if(p.life <= 0) particles.splice(i, 1);
         });
-        ctx.globalAlpha = 1.0;
+        ctx.globalAlpha = 1;
 
-        // Draw Tornado
-        tornado.draw();
-
-        // Draw Bullets
-        ctx.fillStyle = varColor('--neon-red');
-        bullets.forEach(b => ctx.fillRect(b.x, b.y, 10, 3));
-
-        // Draw Bombs
-        ctx.fillStyle = '#ffcc00';
-        bombs.forEach(b => {
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, 6, 0, Math.PI*2);
-            ctx.fill();
-        });
-
-        // Draw Enemies
-        enemies.forEach(en => {
-            ctx.fillStyle = '#2d3436';
-            ctx.fillRect(en.x, en.y, en.w, en.h);
-            ctx.fillStyle = '#d63031';
-            ctx.fillRect(en.x + 10, en.y - 10, 20, 10); // Turm
-        });
-
-        requestAnimationFrame(() => {
-            update();
-            draw();
-        });
-    }
-
-    function updateScore() {
+        jet.draw();
         document.getElementById('score').innerText = score;
+        requestAnimationFrame(loop);
     }
 
-    function varColor(name) {
-        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    }
-
-    // Touch Event Hook
-    document.getElementById('fire-btn').addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        fireCannon();
-    });
-
-    draw();
+    loop();
 </script>
 </body>
 </html>
