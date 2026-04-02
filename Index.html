@@ -1,468 +1,581 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TORNADO: BLACK OPS - ULTIMATE EDITION V5.0</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
-    <style>
-        /* CSS ARCHITECTURE - 150+ LINES */
-        :root {
-            --neon-blue: #00f2ff;
-            --neon-red: #ff004c;
-            --hud-green: #00ff41;
-            --warning: #ffae00;
-            --bg-dark: #010205;
-            --glass: rgba(0, 15, 30, 0.9);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TORNADO BLACK OPS ENGINE</title>
 
-        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body, html { 
-            background-color: var(--bg-dark); 
-            color: #fff; 
-            font-family: 'JetBrains Mono', monospace; 
-            overflow: hidden; 
-            height: 100vh; width: 100vw; 
-            touch-action: none;
-        }
+<style>
 
-        canvas { 
-            display: block; 
-            position: absolute; top: 0; left: 0; 
-            z-index: 1; 
-            image-rendering: auto;
-        }
+body{
+margin:0;
+background:#02040a;
+overflow:hidden;
+font-family:monospace;
+color:white;
+}
 
-        /* UI SYSTEM */
-        #ui-layer {
-            position: absolute; inset: 0;
-            z-index: 10;
-            pointer-events: none; /* WICHTIG: Klicks gehen durch das UI durch */
-        }
+canvas{
+position:absolute;
+top:0;
+left:0;
+}
 
-        .hud-panel {
-            position: absolute;
-            background: var(--glass);
-            border: 1px solid rgba(0, 242, 255, 0.2);
-            backdrop-filter: blur(12px);
-            padding: 15px;
-            border-radius: 4px;
-            pointer-events: auto; /* Nur Panels sind klickbar */
-        }
+#boot{
+position:fixed;
+inset:0;
+display:flex;
+justify-content:center;
+align-items:center;
+background:black;
+z-index:10;
+}
 
-        #hud-top-left { top: 20px; left: 20px; width: 260px; border-left: 4px solid var(--hud-green); }
-        #hud-top-right { top: 20px; right: 20px; width: 260px; border-right: 4px solid var(--neon-blue); text-align: right; }
-        
-        .stat-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .label { font-size: 0.65rem; color: var(--hud-green); text-transform: uppercase; letter-spacing: 1px; }
-        .value { font-family: 'Orbitron'; font-size: 1.1rem; color: #fff; }
+button{
+padding:20px 50px;
+font-size:20px;
+cursor:pointer;
+}
 
-        .progress-container { width: 100%; height: 6px; background: #000; border: 1px solid #222; margin: 4px 0 10px 0; border-radius: 3px; overflow: hidden; }
-        .progress-fill { height: 100%; width: 0%; transition: width 0.15s ease-out; }
-        .fill-red { background: var(--neon-red); box-shadow: 0 0 10px var(--neon-red); }
-        .fill-blue { background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); }
-
-        /* SCREENS */
-        .overlay-screen {
-            position: fixed; inset: 0;
-            background: radial-gradient(circle, rgba(0,10,20,0.9) 0%, rgba(0,0,0,1) 100%);
-            display: flex; justify-content: center; align-items: center;
-            z-index: 1000; /* Ganz oben */
-            pointer-events: auto;
-        }
-
-        .terminal-box {
-            width: 90%; max-width: 600px;
-            background: #050a10;
-            border: 1px solid var(--neon-blue);
-            padding: 50px;
-            text-align: center;
-            position: relative;
-            box-shadow: 0 0 40px rgba(0, 242, 255, 0.1);
-        }
-
-        .terminal-box::before {
-            content: ""; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
-            border: 1px solid var(--neon-blue); opacity: 0.3; pointer-events: none;
-        }
-
-        h1 { font-family: 'Orbitron'; font-size: 3rem; color: var(--neon-blue); margin-bottom: 10px; letter-spacing: 8px; }
-        .version-tag { color: var(--hud-green); font-size: 0.8rem; margin-bottom: 30px; display: block; }
-
-        .btn-action {
-            background: var(--neon-blue); color: #000;
-            border: none; padding: 18px 50px;
-            font-family: 'Orbitron'; font-weight: bold; font-size: 1rem;
-            cursor: pointer; position: relative; overflow: hidden;
-            transition: 0.3s;
-        }
-
-        .btn-action:hover { background: #fff; box-shadow: 0 0 20px #fff; }
-
-        /* MOBILE CONTROLS */
-        #mobile-hud {
-            position: absolute; bottom: 40px; left: 0; width: 100%;
-            display: none; justify-content: space-between; padding: 0 50px;
-            z-index: 20; pointer-events: none;
-        }
-
-        .control-btn {
-            width: 90px; height: 90px; border-radius: 50%;
-            background: rgba(255,255,255,0.05); border: 2px solid rgba(0, 242, 255, 0.4);
-            color: #fff; font-family: 'Orbitron'; font-weight: bold;
-            display: flex; align-items: center; justify-content: center;
-            pointer-events: auto;
-        }
-
-        .btn-fire { border-color: var(--neon-red); color: var(--neon-red); }
-
-        /* CRITIAL ALERT */
-        #alert-system {
-            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
-            color: var(--neon-red); font-family: 'Orbitron'; font-size: 2.5rem;
-            display: none; animation: blink 0.2s infinite; z-index: 5;
-        }
-
-        @keyframes blink { 0% { opacity: 0; } 50% { opacity: 1; } 100% { opacity: 0; } }
-    </style>
+</style>
 </head>
+
 <body>
 
-    <div id="ui-layer">
-        <div id="hud-top-left" class="hud-panel">
-            <div class="stat-row">
-                <span class="label">ALTITUDE</span>
-                <span id="ui-alt" class="value">0000</span>
-            </div>
-            <div class="stat-row">
-                <span class="label">AIRSPEED</span>
-                <span id="ui-spd" class="value">000</span>
-            </div>
-            <div style="height: 15px;"></div>
-            <div class="label">CREDITS ACQUIRED</div>
-            <div id="ui-credits" class="value" style="color:var(--warning)">000,000</div>
-        </div>
+<div id="boot">
+<button id="startBtn">START MISSION</button>
+</div>
 
-        <div id="hud-top-right" class="hud-panel">
-            <div class="label">BK-27 CANNON TEMPERATURE</div>
-            <div class="progress-container"><div id="bar-heat" class="progress-fill fill-red"></div></div>
-            <div class="label">ORDNANCE RELOAD CYCLE</div>
-            <div class="progress-container"><div id="bar-bomb" class="progress-fill fill-blue"></div></div>
-            <div class="label" style="color:var(--neon-blue)">STATUS: MISSION ACTIVE</div>
-        </div>
-
-        <div id="alert-system">WARNING: COLLISION</div>
-
-        <div id="screen-boot" class="overlay-screen">
-            <div class="terminal-box">
-                <h1>TORNADO</h1>
-                <span class="version-tag">BLACK OPS SIMULATOR // BUILD 5.0.12</span>
-                <p style="color:#555; font-size: 0.7rem; line-height: 1.5; text-align: left; margin-bottom: 30px;">
-                    INITIALIZING CORE SYSTEMS... [DONE]<br>
-                    LOADING TERRAIN DATA... [DONE]<br>
-                    ARMING WEAPON BAYS... [DONE]<br>
-                    DETECTING INPUT INTERFACE... [ACTIVE]
-                </p>
-                <button class="btn-action" id="master-start-btn">INITIATE MISSION</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="mobile-hud">
-        <div style="display: flex; gap: 20px;">
-            <div class="control-btn" id="m-up">UP</div>
-            <div class="control-btn" id="m-dn">DN</div>
-        </div>
-        <div class="control-btn btn-fire" id="m-fire">FIRE</div>
-    </div>
-
-    <canvas id="mainCanvas"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-/**
- * TORNADO BLACK OPS - ULTIMATE ENGINE V5.0
- * ----------------------------------------
- * Eine hochoptimierte Spiele-Engine für den Browser.
- */
 
-// --- ENGINE CONFIGURATION ---
-const CFG = {
-    gravity: 0.22,
-    friction: 0.985,
-    terrainRes: 120,
-    maxParticles: 500,
-    enemySpawnRate: 0.012
-};
+/* =====================================================
+   CONFIG
+===================================================== */
 
-// --- VECTOR CLASS ---
-class Vec2 {
-    constructor(x = 0, y = 0) { this.x = x; this.y = y; }
-    add(v) { this.x += v.x; this.y += v.y; return this; }
-    mult(n) { this.x *= n; this.y *= n; return this; }
-    mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+const CONFIG = {
+
+gravity:0.25,
+friction:0.98,
+
+bulletSpeed:25,
+enemySpeed:6,
+
+spawnChance:0.015,
+
+terrainSegments:120,
+terrainSpacing:80
+
 }
 
-// --- PARTICLE CLASS ---
-class Particle {
-    constructor(x, y, vx, vy, life, color, size) {
-        this.pos = new Vec2(x, y);
-        this.vel = new Vec2(vx, vy);
-        this.life = life;
-        this.maxLife = life;
-        this.color = color;
-        this.size = size;
-    }
-    update() {
-        this.pos.add(this.vel);
-        this.life -= 0.02;
-    }
+/* =====================================================
+   VECTOR
+===================================================== */
+
+class Vector{
+
+constructor(x=0,y=0){
+
+this.x=x
+this.y=y
+
 }
 
-// --- MAIN GAME CLASS ---
-class GameEngine {
-    constructor() {
-        this.canvas = document.getElementById('mainCanvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.isRunning = false;
-        this.frame = 0;
-        this.credits = 0;
-        
-        // Entity Pools
-        this.entities = {
-            bullets: [],
-            enemies: [],
-            particles: [],
-            terrain: [],
-            clouds: []
-        };
+add(v){
 
-        // Player State
-        this.player = {
-            pos: new Vec2(250, 400),
-            vel: new Vec2(0, 0),
-            angle: 0,
-            heat: 0,
-            bombCD: 0
-        };
+this.x+=v.x
+this.y+=v.y
 
-        this.input = { up: false, down: false, fire: false };
-        
-        this.init();
-    }
+return this
 
-    init() {
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        this.setupInput();
-        this.generateWorld();
-        
-        // Start rendering immediately
-        this.loop();
-    }
-
-    resize() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-    }
-
-    setupInput() {
-        // Keyboard
-        window.addEventListener('keydown', e => this.handleKeys(e.code, true));
-        window.addEventListener('keyup', e => this.handleKeys(e.code, false));
-
-        // Start Button Fix
-        const sBtn = document.getElementById('master-start-btn');
-        sBtn.onclick = (e) => {
-            e.preventDefault();
-            this.isRunning = true;
-            document.getElementById('screen-boot').style.display = 'none';
-        };
-
-        // Mobile
-        if('ontouchstart' in window) {
-            document.getElementById('mobile-hud').style.display = 'flex';
-            const b = (id, k) => {
-                const el = document.getElementById(id);
-                el.ontouchstart = (e) => { e.preventDefault(); this.input[k] = true; };
-                el.ontouchend = () => this.input[k] = false;
-            };
-            b('m-up', 'up'); b('m-dn', 'down'); b('m-fire', 'fire');
-        }
-    }
-
-    handleKeys(code, state) {
-        if(code === 'ArrowUp' || code === 'KeyW') this.input.up = state;
-        if(code === 'ArrowDown' || code === 'KeyS') this.input.down = state;
-        if(code === 'Space') this.input.fire = state;
-    }
-
-    generateWorld() {
-        for(let i=0; i < CFG.terrainRes; i++) {
-            this.entities.terrain.push({ x: i * 80, h: 60 + Math.random() * 140 });
-        }
-        for(let i=0; i<15; i++) {
-            this.entities.clouds.push({ x: Math.random()*2000, y: Math.random()*400, s: 0.5+Math.random() });
-        }
-    }
-
-    spawnExplosion(x, y, color = '#ff5500') {
-        for(let i=0; i<25; i++) {
-            this.entities.particles.push(new Particle(
-                x, y, (Math.random()-0.5)*15, (Math.random()-0.5)*15, 1.5, color, 4
-            ));
-        }
-    }
-
-    update() {
-        if(!this.isRunning) return;
-        this.frame++;
-
-        // 1. PHYSICS
-        if(this.input.up) this.player.vel.y -= 0.7;
-        if(this.input.down) this.player.vel.y += 0.7;
-        
-        this.player.vel.mult(CFG.friction);
-        this.player.pos.add(this.player.vel);
-        this.player.angle = this.player.vel.y * 0.04;
-
-        // Ground/Sky Collision
-        if(this.player.pos.y < 80) this.player.pos.y = 80;
-        if(this.player.pos.y > this.canvas.height - 120) {
-            this.player.pos.y = this.canvas.height - 120;
-            document.getElementById('alert-system').style.display = 'block';
-        } else {
-            document.getElementById('alert-system').style.display = 'none';
-        }
-
-        // 2. COMBAT
-        if(this.input.fire && this.player.heat < 100 && this.frame % 5 === 0) {
-            this.entities.bullets.push({ x: this.player.pos.x + 60, y: this.player.pos.y + 10 });
-            this.player.heat += 5;
-            // Recoil
-            this.player.vel.x -= 0.1;
-        }
-        this.player.heat = Math.max(0, this.player.heat - 0.5);
-
-        // 3. ENTITY LOGIC
-        this.entities.bullets.forEach((b, i) => {
-            b.x += 25;
-            if(b.x > this.canvas.width) this.entities.bullets.splice(i, 1);
-        });
-
-        if(Math.random() < CFG.enemySpawnRate) {
-            this.entities.enemies.push({ x: this.canvas.width + 100, y: this.canvas.height - 40, hp: 1 });
-        }
-
-        this.entities.enemies.forEach((en, i) => {
-            en.x -= 6;
-            // Bullet Collision
-            this.entities.bullets.forEach((bul, bi) => {
-                if(Math.abs(bul.x - en.x) < 50 && bul.y > en.y - 40) {
-                    this.spawnExplosion(en.x, en.y - 20);
-                    this.entities.enemies.splice(i, 1);
-                    this.entities.bullets.splice(bi, 1);
-                    this.credits += 250;
-                }
-            });
-            if(en.x < -100) this.entities.enemies.splice(i, 1);
-        });
-
-        this.entities.particles.forEach((p, i) => {
-            p.update();
-            if(p.life <= 0) this.entities.particles.splice(i, 1);
-        });
-
-        // Update UI
-        document.getElementById('ui-alt').innerText = Math.floor(this.canvas.height - this.player.pos.y);
-        document.getElementById('ui-spd').innerText = Math.floor(800 + this.player.vel.y * 2);
-        document.getElementById('ui-credits').innerText = this.credits.toLocaleString();
-        document.getElementById('bar-heat').style.width = this.player.heat + "%";
-    }
-
-    draw() {
-        const ctx = this.ctx;
-        ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Sky
-        let sky = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-        sky.addColorStop(0, '#00050a'); sky.addColorStop(1, '#001a33');
-        ctx.fillStyle = sky; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Clouds
-        ctx.fillStyle = 'rgba(255,255,255,0.02)';
-        this.entities.clouds.forEach(cl => {
-            cl.x -= cl.s * 3;
-            if(cl.x < -300) cl.x = this.canvas.width + 300;
-            ctx.beginPath(); ctx.ellipse(cl.x, cl.y, 150*cl.s, 40*cl.s, 0, 0, 7); ctx.fill();
-        });
-
-        // Terrain
-        ctx.fillStyle = '#050a10';
-        ctx.beginPath(); ctx.moveTo(0, this.canvas.height);
-        this.entities.terrain.forEach(pt => {
-            let tx = (pt.x - this.frame * 5) % (CFG.terrainRes * 80);
-            if(tx < 0) tx += CFG.terrainRes * 80;
-            ctx.lineTo(tx, this.canvas.height - pt.h);
-        });
-        ctx.lineTo(this.canvas.width, this.canvas.height); ctx.fill();
-
-        // Projectiles
-        ctx.fillStyle = '#fff200';
-        this.entities.bullets.forEach(b => ctx.fillRect(b.x, b.y, 15, 3));
-        
-        this.entities.particles.forEach(p => {
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.pos.x, p.pos.y, p.size, p.size);
-        });
-        ctx.globalAlpha = 1;
-
-        // Enemies
-        ctx.fillStyle = '#111';
-        this.entities.enemies.forEach(en => {
-            ctx.fillRect(en.x - 30, en.y - 30, 60, 30);
-            ctx.fillStyle = '#ff004c'; ctx.fillRect(en.x - 5, en.y - 45, 10, 15); ctx.fillStyle = '#111';
-        });
-
-        // THE TORNADO
-        ctx.save();
-        ctx.translate(this.player.pos.x, this.player.pos.y);
-        ctx.rotate(this.player.angle);
-        
-        // Wing
-        ctx.fillStyle = '#3a4146';
-        ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(-50, -35); ctx.lineTo(10, 0); ctx.fill();
-        
-        // Engine Glow
-        let engineGlow = ctx.createRadialGradient(-60, 15, 0, -60, 15, 20);
-        engineGlow.addColorStop(0, '#00f2ff'); engineGlow.addColorStop(1, 'transparent');
-        ctx.fillStyle = engineGlow; ctx.fillRect(-80, 0, 40, 30);
-
-        // Fuselage
-        let g = ctx.createLinearGradient(0, 0, 0, 30);
-        g.addColorStop(0, '#5e676d'); g.addColorStop(1, '#2c3338');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.moveTo(-65, 5); ctx.lineTo(85, 10); ctx.lineTo(75, 25); ctx.lineTo(-60, 28); ctx.fill();
-        
-        // Cockpit
-        ctx.fillStyle = 'rgba(0, 242, 255, 0.5)';
-        ctx.beginPath(); ctx.ellipse(45, 10, 20, 7, 0, 0, 7); ctx.fill();
-        
-        ctx.restore();
-    }
-
-    loop() {
-        this.update();
-        this.draw();
-        requestAnimationFrame(() => this.loop());
-    }
 }
 
-// BOOT ENGINE
-window.onload = () => {
-    console.log("ENGINE BOOTSTRAP SUCCESSFUL");
-    const engine = new GameEngine();
-};
+multiply(n){
+
+this.x*=n
+this.y*=n
+
+return this
+
+}
+
+clone(){
+
+return new Vector(this.x,this.y)
+
+}
+
+}
+
+/* =====================================================
+   PARTICLE
+===================================================== */
+
+class Particle{
+
+constructor(x,y,vx,vy,life,color){
+
+this.pos=new Vector(x,y)
+this.vel=new Vector(vx,vy)
+
+this.life=life
+this.maxLife=life
+this.color=color
+this.size=4
+
+}
+
+update(){
+
+this.pos.add(this.vel)
+
+this.life-=0.02
+
+}
+
+draw(ctx){
+
+ctx.globalAlpha=this.life
+
+ctx.fillStyle=this.color
+
+ctx.fillRect(this.pos.x,this.pos.y,this.size,this.size)
+
+ctx.globalAlpha=1
+
+}
+
+}
+
+/* =====================================================
+   BULLET
+===================================================== */
+
+class Bullet{
+
+constructor(x,y){
+
+this.x=x
+this.y=y
+
+}
+
+update(){
+
+this.x+=CONFIG.bulletSpeed
+
+}
+
+draw(ctx){
+
+ctx.fillStyle="yellow"
+ctx.fillRect(this.x,this.y,12,3)
+
+}
+
+}
+
+/* =====================================================
+   ENEMY
+===================================================== */
+
+class Enemy{
+
+constructor(x,y){
+
+this.x=x
+this.y=y
+
+this.width=60
+this.height=30
+
+}
+
+update(){
+
+this.x-=CONFIG.enemySpeed
+
+}
+
+draw(ctx){
+
+ctx.fillStyle="#111"
+
+ctx.fillRect(this.x-30,this.y-30,60,30)
+
+ctx.fillStyle="red"
+
+ctx.fillRect(this.x-5,this.y-45,10,15)
+
+}
+
+}
+
+/* =====================================================
+   PLAYER
+===================================================== */
+
+class Player{
+
+constructor(){
+
+this.pos=new Vector(250,400)
+
+this.vel=new Vector()
+
+this.angle=0
+
+this.heat=0
+
+}
+
+update(input){
+
+if(input.up){
+
+this.vel.y-=0.7
+
+}
+
+if(input.down){
+
+this.vel.y+=0.7
+
+}
+
+this.vel.multiply(CONFIG.friction)
+
+this.pos.add(this.vel)
+
+this.angle=this.vel.y*0.04
+
+}
+
+draw(ctx){
+
+ctx.save()
+
+ctx.translate(this.pos.x,this.pos.y)
+
+ctx.rotate(this.angle)
+
+/* wing */
+
+ctx.fillStyle="#444"
+
+ctx.beginPath()
+
+ctx.moveTo(-20,0)
+ctx.lineTo(-50,-35)
+ctx.lineTo(10,0)
+
+ctx.fill()
+
+/* body */
+
+ctx.fillStyle="#777"
+
+ctx.beginPath()
+
+ctx.moveTo(-65,5)
+ctx.lineTo(85,10)
+ctx.lineTo(75,25)
+ctx.lineTo(-60,28)
+
+ctx.fill()
+
+/* cockpit */
+
+ctx.fillStyle="cyan"
+
+ctx.beginPath()
+
+ctx.ellipse(45,10,20,7,0,0,Math.PI*2)
+
+ctx.fill()
+
+ctx.restore()
+
+}
+
+}
+
+/* =====================================================
+   GAME ENGINE
+===================================================== */
+
+class Game{
+
+constructor(){
+
+this.canvas=document.getElementById("game")
+this.ctx=this.canvas.getContext("2d")
+
+this.resize()
+
+window.addEventListener("resize",()=>this.resize())
+
+this.player=new Player()
+
+this.bullets=[]
+this.enemies=[]
+this.particles=[]
+
+this.input={
+up:false,
+down:false,
+fire:false
+}
+
+this.frame=0
+
+this.running=false
+
+this.setupInput()
+
+this.lastTime=0
+
+requestAnimationFrame((t)=>this.loop(t))
+
+}
+
+/* ---------------------------- */
+
+resize(){
+
+this.canvas.width=window.innerWidth
+this.canvas.height=window.innerHeight
+
+}
+
+/* ---------------------------- */
+
+setupInput(){
+
+window.addEventListener("keydown",(e)=>{
+
+if(e.code==="ArrowUp")this.input.up=true
+if(e.code==="ArrowDown")this.input.down=true
+if(e.code==="Space")this.input.fire=true
+
+})
+
+window.addEventListener("keyup",(e)=>{
+
+if(e.code==="ArrowUp")this.input.up=false
+if(e.code==="ArrowDown")this.input.down=false
+if(e.code==="Space")this.input.fire=false
+
+})
+
+}
+
+/* ---------------------------- */
+
+spawnEnemy(){
+
+const y=this.canvas.height-40
+
+this.enemies.push(new Enemy(this.canvas.width+100,y))
+
+}
+
+/* ---------------------------- */
+
+spawnExplosion(x,y){
+
+for(let i=0;i<25;i++){
+
+this.particles.push(
+
+new Particle(
+x,
+y,
+(Math.random()-0.5)*10,
+(Math.random()-0.5)*10,
+1.5,
+"orange"
+)
+
+)
+
+}
+
+}
+
+/* ---------------------------- */
+
+update(){
+
+if(!this.running)return
+
+this.frame++
+
+this.player.update(this.input)
+
+/* fire */
+
+if(this.input.fire && this.frame%5===0){
+
+this.bullets.push(
+new Bullet(
+this.player.pos.x+60,
+this.player.pos.y+10
+)
+)
+
+}
+
+/* bullets */
+
+for(let i=this.bullets.length-1;i>=0;i--){
+
+let b=this.bullets[i]
+
+b.update()
+
+if(b.x>this.canvas.width){
+
+this.bullets.splice(i,1)
+
+}
+
+}
+
+/* enemy spawn */
+
+if(Math.random()<CONFIG.spawnChance){
+
+this.spawnEnemy()
+
+}
+
+/* enemies */
+
+for(let i=this.enemies.length-1;i>=0;i--){
+
+let e=this.enemies[i]
+
+e.update()
+
+if(e.x<-100){
+
+this.enemies.splice(i,1)
+
+continue
+
+}
+
+/* collision */
+
+for(let j=this.bullets.length-1;j>=0;j--){
+
+let b=this.bullets[j]
+
+if(Math.abs(b.x-e.x)<40 && Math.abs(b.y-e.y)<40){
+
+this.spawnExplosion(e.x,e.y)
+
+this.enemies.splice(i,1)
+this.bullets.splice(j,1)
+
+break
+
+}
+
+}
+
+}
+
+/* particles */
+
+for(let i=this.particles.length-1;i>=0;i--){
+
+let p=this.particles[i]
+
+p.update()
+
+if(p.life<=0){
+
+this.particles.splice(i,1)
+
+}
+
+}
+
+}
+
+/* ---------------------------- */
+
+draw(){
+
+const ctx=this.ctx
+
+ctx.clearRect(0,0,this.canvas.width,this.canvas.height)
+
+/* sky */
+
+let g=ctx.createLinearGradient(0,0,0,this.canvas.height)
+
+g.addColorStop(0,"#00050a")
+g.addColorStop(1,"#001a33")
+
+ctx.fillStyle=g
+ctx.fillRect(0,0,this.canvas.width,this.canvas.height)
+
+/* bullets */
+
+this.bullets.forEach(b=>b.draw(ctx))
+
+/* enemies */
+
+this.enemies.forEach(e=>e.draw(ctx))
+
+/* particles */
+
+this.particles.forEach(p=>p.draw(ctx))
+
+/* player */
+
+this.player.draw(ctx)
+
+}
+
+/* ---------------------------- */
+
+loop(time){
+
+let dt=time-this.lastTime
+
+this.lastTime=time
+
+this.update()
+
+this.draw()
+
+requestAnimationFrame((t)=>this.loop(t))
+
+}
+
+}
+
+/* =====================================================
+   BOOT
+===================================================== */
+
+let game
+
+document.getElementById("startBtn").onclick=()=>{
+
+document.getElementById("boot").style.display="none"
+
+game=new Game()
+
+game.running=true
+
+}
+
 </script>
 </body>
 </html>
