@@ -1,581 +1,358 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TORNADO BLACK OPS ENGINE</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TORNADO: BLACK OPS - V6</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --neon-blue: #00f2ff; --neon-red: #ff004c; --hud-green: #00ff41; --bg: #010205; }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body, html { background: var(--bg); color: #fff; font-family: 'JetBrains Mono', monospace; overflow: hidden; height: 100vh; width: 100vw; touch-action: none; }
+        canvas { display: block; position: absolute; z-index: 1; }
 
-<style>
+        /* UI SYSTEM */
+        #ui { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+        .panel { position: absolute; background: rgba(0, 15, 30, 0.85); border: 1px solid rgba(0, 242, 255, 0.3); backdrop-filter: blur(10px); padding: 15px; border-radius: 4px; pointer-events: auto; }
+        #hud-l { top: 20px; left: 20px; border-left: 4px solid var(--hud-green); }
+        #hud-r { top: 20px; right: 20px; border-right: 4px solid var(--neon-blue); text-align: right; }
+        .label { font-size: 0.65rem; color: var(--hud-green); text-transform: uppercase; }
+        .val { font-family: 'Orbitron'; font-size: 1.2rem; margin-bottom: 5px; }
 
-body{
-margin:0;
-background:#02040a;
-overflow:hidden;
-font-family:monospace;
-color:white;
-}
+        /* SCREENS */
+        .screen { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 100; pointer-events: auto; flex-direction: column; }
+        .box { width: 90%; max-width: 500px; background: #050a10; border: 2px solid var(--neon-blue); padding: 40px; text-align: center; box-shadow: 0 0 40px rgba(0, 242, 255, 0.2); }
+        h1 { font-family: 'Orbitron'; font-size: 2.5rem; color: var(--neon-blue); margin-bottom: 10px; }
+        .btn { background: var(--neon-blue); color: #000; border: none; padding: 15px 40px; font-family: 'Orbitron'; font-weight: bold; font-size: 1.2rem; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
 
-canvas{
-position:absolute;
-top:0;
-left:0;
-}
+        /* GAME OVER SCREEN */
+        #screen-death { display: none; background: rgba(20, 0, 0, 0.95); }
+        #screen-death .box { border-color: var(--neon-red); box-shadow: 0 0 40px rgba(255, 0, 76, 0.3); }
+        #screen-death h1 { color: var(--neon-red); }
+        #screen-death .btn { background: var(--neon-red); color: #fff; }
 
-#boot{
-position:fixed;
-inset:0;
-display:flex;
-justify-content:center;
-align-items:center;
-background:black;
-z-index:10;
-}
+        /* MOBILE CONTROLS */
+        #mobile { position: absolute; bottom: 30px; left: 0; width: 100%; display: none; justify-content: space-between; padding: 0 40px; z-index: 20; pointer-events: none; }
+        .m-btn { width: 80px; height: 80px; border-radius: 50%; background: rgba(0, 242, 255, 0.1); border: 2px solid var(--neon-blue); display: flex; justify-content: center; align-items: center; font-family: 'Orbitron'; font-weight: bold; pointer-events: auto; }
+        #m-fire { border-color: var(--neon-red); color: var(--neon-red); }
 
-button{
-padding:20px 50px;
-font-size:20px;
-cursor:pointer;
-}
-
-</style>
+        /* SCREEN SHAKE */
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        .shake-active { animation: shake 0.5s; animation-iteration-count: 1; }
+    </style>
 </head>
-
 <body>
 
-<div id="boot">
-<button id="startBtn">START MISSION</button>
-</div>
+    <div id="ui">
+        <div id="hud-l" class="panel">
+            <div class="label">ALTITUDE</div><div class="val" id="v-alt">0</div>
+            <div class="label">AIRSPEED</div><div class="val" id="v-spd">0</div>
+        </div>
+        <div id="hud-r" class="panel">
+            <div class="label">CREDITS</div><div class="val" id="v-cr" style="color:#ffae00">0</div>
+            <div class="label">SYSTEM</div><div class="val" id="v-sys" style="color:var(--hud-green)">NOMINAL</div>
+        </div>
+    </div>
 
-<canvas id="game"></canvas>
+    <div id="screen-start" class="screen">
+        <div class="box">
+            <h1>TORNADO</h1>
+            <p style="color:var(--hud-green)">PHYSICS & COLLISION ENGINE V6</p>
+            <button class="btn" id="btn-start">LAUNCH MISSION</button>
+        </div>
+    </div>
+
+    <div id="screen-death" class="screen">
+        <div class="box">
+            <h1>KIA</h1>
+            <p style="color:#fff; margin-bottom: 20px;">AIRCRAFT DESTROYED</p>
+            <p style="color:#aaa; font-size:0.8rem;">REASON: <span id="death-reason" style="color:var(--neon-red)">TERRAIN IMPACT</span></p>
+            <button class="btn" id="btn-restart">RETRY MISSION</button>
+        </div>
+    </div>
+
+    <div id="mobile">
+        <div style="display:flex; gap:15px;">
+            <div class="m-btn" id="m-up">UP</div>
+            <div class="m-btn" id="m-dn">DN</div>
+        </div>
+        <div class="m-btn" id="m-fire">FIRE</div>
+    </div>
+
+    <canvas id="c"></canvas>
 
 <script>
+/**
+ * TORNADO V6 - FULL COLLISION & PHYSICS
+ */
+const cvs = document.getElementById('c');
+const ctx = cvs.getContext('2d');
+let gameLoop;
+let isPlaying = false;
+let frame = 0;
+let credits = 0;
 
-/* =====================================================
-   CONFIG
-===================================================== */
+// Config
+const GRAVITY = 0.3;
+const LIFT = 0.8;
+const THRUST = 0.5;
+const FRICTION = 0.98;
 
-const CONFIG = {
+// State
+let player, entities, input;
 
-gravity:0.25,
-friction:0.98,
+function initGame() {
+    player = { x: 250, y: 300, vx: 5, vy: 0, angle: 0, dead: false, heat: 0 };
+    entities = { bullets: [], tanks: [], particles: [], terrain: [] };
+    input = { up: false, down: false, fire: false };
+    credits = 0;
+    frame = 0;
 
-bulletSpeed:25,
-enemySpeed:6,
-
-spawnChance:0.015,
-
-terrainSegments:120,
-terrainSpacing:80
-
+    // Generate Terrain Array
+    for(let i=0; i<300; i++) {
+        entities.terrain.push({ x: i * 100, y: cvs.height - (50 + Math.random() * 150) });
+    }
 }
 
-/* =====================================================
-   VECTOR
-===================================================== */
+// Resizing
+function resize() { cvs.width = window.innerWidth; cvs.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+initGame();
 
-class Vector{
-
-constructor(x=0,y=0){
-
-this.x=x
-this.y=y
-
+// Inputs
+window.addEventListener('keydown', e => handleKey(e.code, true));
+window.addEventListener('keyup', e => handleKey(e.code, false));
+function handleKey(c, s) {
+    if(c === 'ArrowUp' || c === 'KeyW') input.up = s;
+    if(c === 'ArrowDown' || c === 'KeyS') input.down = s;
+    if(c === 'Space') input.fire = s;
 }
 
-add(v){
-
-this.x+=v.x
-this.y+=v.y
-
-return this
-
+// Mobile
+if('ontouchstart' in window) {
+    document.getElementById('mobile').style.display = 'flex';
+    const b = (id, k) => {
+        let el = document.getElementById(id);
+        el.ontouchstart = e => { e.preventDefault(); input[k] = true; };
+        el.ontouchend = e => { e.preventDefault(); input[k] = false; };
+    };
+    b('m-up', 'up'); b('m-dn', 'down'); b('m-fire', 'fire');
 }
 
-multiply(n){
+// UI Buttons
+document.getElementById('btn-start').onclick = () => startGame();
+document.getElementById('btn-restart').onclick = () => {
+    document.getElementById('screen-death').style.display = 'none';
+    document.body.classList.remove('shake-active');
+    initGame();
+    startGame();
+};
 
-this.x*=n
-this.y*=n
-
-return this
-
+function startGame() {
+    document.getElementById('screen-start').style.display = 'none';
+    isPlaying = true;
+    loop();
 }
 
-clone(){
-
-return new Vector(this.x,this.y)
-
+function gameOver(reason) {
+    isPlaying = false;
+    player.dead = true;
+    document.getElementById('v-sys').innerText = "CRITICAL FAILURE";
+    document.getElementById('v-sys').style.color = "var(--neon-red)";
+    document.getElementById('death-reason').innerText = reason;
+    document.body.classList.add('shake-active');
+    
+    // Massive Explosion
+    for(let i=0; i<100; i++) spawnParticle(player.x, player.y, (Math.random()-0.5)*20, (Math.random()-0.5)*20, 2);
+    
+    // Draw one last frame to show explosion, then show screen
+    draw(); 
+    setTimeout(() => { document.getElementById('screen-death').style.display = 'flex'; }, 1000);
 }
 
+function spawnParticle(x, y, vx, vy, lifeScale=1) {
+    entities.particles.push({
+        x: x, y: y, vx: vx, vy: vy, 
+        life: 1.0 * lifeScale, 
+        color: Math.random() > 0.5 ? '#ff4c00' : '#ffae00'
+    });
 }
 
-/* =====================================================
-   PARTICLE
-===================================================== */
+// Get precise terrain height at a specific X coordinate using interpolation
+function getTerrainY(targetX) {
+    // Finde das Terrain-Segment
+    let tX = (targetX + frame * 6) % (300 * 100);
+    let index = Math.floor(tX / 100);
+    
+    if(index >= entities.terrain.length - 1) return cvs.height - 50;
 
-class Particle{
-
-constructor(x,y,vx,vy,life,color){
-
-this.pos=new Vector(x,y)
-this.vel=new Vector(vx,vy)
-
-this.life=life
-this.maxLife=life
-this.color=color
-this.size=4
-
+    let p1 = entities.terrain[index];
+    let p2 = entities.terrain[index+1];
+    
+    // Interpolation (Mischung zwischen zwei Punkten)
+    let fraction = (tX % 100) / 100;
+    return p1.y + (p2.y - p1.y) * fraction;
 }
 
-update(){
+function update() {
+    if(!isPlaying) return;
+    frame++;
 
-this.pos.add(this.vel)
+    // 1. PHYSICS (TORNADO)
+    if(input.up) player.vy -= LIFT;
+    if(input.down) player.vy += LIFT;
+    
+    player.vy += GRAVITY; // Schwerkraft zieht nach unten
+    player.vy *= FRICTION; // Luftwiderstand
+    player.y += player.vy;
+    
+    // Optische Neigung
+    player.angle = player.vy * 0.05;
 
-this.life-=0.02
+    // 2. COLLISION: TORNADO VS TERRAIN
+    let currentTerrainY = getTerrainY(player.x);
+    if(player.y > currentTerrainY - 15) {
+        player.y = currentTerrainY - 15;
+        gameOver("TERRAIN IMPACT (CFIT)");
+        return;
+    }
+    
+    // Ceiling
+    if(player.y < 50) { player.y = 50; player.vy = 0; }
 
+    // 3. COMBAT
+    if(input.fire && frame % 5 === 0) {
+        entities.bullets.push({ x: player.x + 50, y: player.y + 10 });
+        player.vy -= 0.1; // Recoil push up
+    }
+
+    // 4. ENTITIES: BULLETS
+    entities.bullets.forEach((b, i) => {
+        b.x += 25; b.y += player.angle * 10;
+        if(b.x > cvs.width || b.y > cvs.height) entities.bullets.splice(i, 1);
+        
+        // Bullet vs Terrain
+        if(b.y > getTerrainY(b.x)) {
+            spawnParticle(b.x, b.y, 0, -2, 0.5);
+            entities.bullets.splice(i, 1);
+        }
+    });
+
+    // 5. ENTITIES: TANKS (PANZER)
+    if(frame % 150 === 0) {
+        entities.tanks.push({ x: cvs.width + 100 });
+    }
+
+    entities.tanks.forEach((tank, i) => {
+        tank.x -= 4; // Panzergeschwindigkeit
+        tank.y = getTerrainY(tank.x) - 15; // Panzer klebt am Boden
+
+        // Tornado vs Tank (CRASH)
+        let distToPlayer = Math.hypot(player.x - tank.x, player.y - tank.y);
+        if(distToPlayer < 40) {
+            gameOver("MID-AIR COLLISION WITH HOSTILE ARMOR");
+            return;
+        }
+
+        // Bullet vs Tank
+        entities.bullets.forEach((b, bi) => {
+            if(Math.abs(b.x - tank.x) < 30 && Math.abs(b.y - tank.y) < 20) {
+                // Zerstört
+                for(let p=0; p<20; p++) spawnParticle(tank.x, tank.y, (Math.random()-0.5)*10, -Math.random()*10);
+                entities.tanks.splice(i, 1);
+                entities.bullets.splice(bi, 1);
+                credits += 500;
+            }
+        });
+
+        if(tank.x < -100) entities.tanks.splice(i, 1);
+    });
+
+    // 6. PARTICLES
+    entities.particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.03;
+        if(p.life <= 0) entities.particles.splice(i, 1);
+    });
+
+    // 7. UI UPDATE
+    document.getElementById('v-alt').innerText = Math.floor(cvs.height - player.y);
+    document.getElementById('v-spd').innerText = Math.floor(800 + Math.abs(player.vy)*10);
+    document.getElementById('v-cr').innerText = credits;
+    if(!player.dead) {
+        let warn = player.y > currentTerrainY - 100;
+        document.getElementById('v-sys').innerText = warn ? "PULL UP" : "NOMINAL";
+        document.getElementById('v-sys').style.color = warn ? "var(--neon-red)" : "var(--hud-green)";
+    }
 }
 
-draw(ctx){
+function draw() {
+    // Clear Background
+    ctx.fillStyle = '#01050a';
+    ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-ctx.globalAlpha=this.life
+    // Draw Terrain
+    ctx.fillStyle = '#0a1015';
+    ctx.strokeStyle = '#00f2ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, cvs.height);
+    for(let x=0; x<cvs.width+100; x+=50) {
+        ctx.lineTo(x, getTerrainY(x));
+    }
+    ctx.lineTo(cvs.width, cvs.height);
+    ctx.fill();
+    ctx.stroke(); // Draw neon line on ground
 
-ctx.fillStyle=this.color
+    // Draw Tanks
+    entities.tanks.forEach(t => {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(t.x - 20, t.y - 10, 40, 15); // Chassis
+        ctx.fillStyle = '#444';
+        ctx.fillRect(t.x - 10, t.y - 18, 20, 8); // Turret
+        ctx.strokeStyle = '#ff004c';
+        ctx.beginPath(); ctx.moveTo(t.x, t.y-14); ctx.lineTo(t.x-25, t.y-14); ctx.stroke(); // Gun
+    });
 
-ctx.fillRect(this.pos.x,this.pos.y,this.size,this.size)
+    // Draw Bullets
+    ctx.fillStyle = '#fffc00';
+    entities.bullets.forEach(b => ctx.fillRect(b.x, b.y, 15, 3));
 
-ctx.globalAlpha=1
+    // Draw Particles
+    entities.particles.forEach(p => {
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, 5, 5);
+    });
+    ctx.globalAlpha = 1;
 
+    // Draw Player (Tornado) - ONLY if not dead
+    if(!player.dead) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle);
+        
+        // Afterburner
+        if(frame % 2 === 0) spawnParticle(player.x - 60, player.y + 5, -10, 0, 0.5);
+
+        // Jet Shape
+        ctx.fillStyle = '#3a4146';
+        ctx.beginPath(); ctx.moveTo(-20, 0); ctx.lineTo(-40, -25); ctx.lineTo(10, 0); ctx.fill(); // Wing
+        ctx.fillStyle = '#5e676d';
+        ctx.beginPath(); ctx.moveTo(-50, 5); ctx.lineTo(60, 10); ctx.lineTo(50, 20); ctx.lineTo(-45, 22); ctx.fill(); // Body
+        ctx.fillStyle = 'rgba(0, 242, 255, 0.6)';
+        ctx.beginPath(); ctx.ellipse(30, 10, 15, 5, 0, 0, Math.PI*2); ctx.fill(); // Cockpit
+        
+        ctx.restore();
+    }
 }
 
+function loop() {
+    update();
+    draw();
+    if(isPlaying || player.dead) requestAnimationFrame(loop);
 }
-
-/* =====================================================
-   BULLET
-===================================================== */
-
-class Bullet{
-
-constructor(x,y){
-
-this.x=x
-this.y=y
-
-}
-
-update(){
-
-this.x+=CONFIG.bulletSpeed
-
-}
-
-draw(ctx){
-
-ctx.fillStyle="yellow"
-ctx.fillRect(this.x,this.y,12,3)
-
-}
-
-}
-
-/* =====================================================
-   ENEMY
-===================================================== */
-
-class Enemy{
-
-constructor(x,y){
-
-this.x=x
-this.y=y
-
-this.width=60
-this.height=30
-
-}
-
-update(){
-
-this.x-=CONFIG.enemySpeed
-
-}
-
-draw(ctx){
-
-ctx.fillStyle="#111"
-
-ctx.fillRect(this.x-30,this.y-30,60,30)
-
-ctx.fillStyle="red"
-
-ctx.fillRect(this.x-5,this.y-45,10,15)
-
-}
-
-}
-
-/* =====================================================
-   PLAYER
-===================================================== */
-
-class Player{
-
-constructor(){
-
-this.pos=new Vector(250,400)
-
-this.vel=new Vector()
-
-this.angle=0
-
-this.heat=0
-
-}
-
-update(input){
-
-if(input.up){
-
-this.vel.y-=0.7
-
-}
-
-if(input.down){
-
-this.vel.y+=0.7
-
-}
-
-this.vel.multiply(CONFIG.friction)
-
-this.pos.add(this.vel)
-
-this.angle=this.vel.y*0.04
-
-}
-
-draw(ctx){
-
-ctx.save()
-
-ctx.translate(this.pos.x,this.pos.y)
-
-ctx.rotate(this.angle)
-
-/* wing */
-
-ctx.fillStyle="#444"
-
-ctx.beginPath()
-
-ctx.moveTo(-20,0)
-ctx.lineTo(-50,-35)
-ctx.lineTo(10,0)
-
-ctx.fill()
-
-/* body */
-
-ctx.fillStyle="#777"
-
-ctx.beginPath()
-
-ctx.moveTo(-65,5)
-ctx.lineTo(85,10)
-ctx.lineTo(75,25)
-ctx.lineTo(-60,28)
-
-ctx.fill()
-
-/* cockpit */
-
-ctx.fillStyle="cyan"
-
-ctx.beginPath()
-
-ctx.ellipse(45,10,20,7,0,0,Math.PI*2)
-
-ctx.fill()
-
-ctx.restore()
-
-}
-
-}
-
-/* =====================================================
-   GAME ENGINE
-===================================================== */
-
-class Game{
-
-constructor(){
-
-this.canvas=document.getElementById("game")
-this.ctx=this.canvas.getContext("2d")
-
-this.resize()
-
-window.addEventListener("resize",()=>this.resize())
-
-this.player=new Player()
-
-this.bullets=[]
-this.enemies=[]
-this.particles=[]
-
-this.input={
-up:false,
-down:false,
-fire:false
-}
-
-this.frame=0
-
-this.running=false
-
-this.setupInput()
-
-this.lastTime=0
-
-requestAnimationFrame((t)=>this.loop(t))
-
-}
-
-/* ---------------------------- */
-
-resize(){
-
-this.canvas.width=window.innerWidth
-this.canvas.height=window.innerHeight
-
-}
-
-/* ---------------------------- */
-
-setupInput(){
-
-window.addEventListener("keydown",(e)=>{
-
-if(e.code==="ArrowUp")this.input.up=true
-if(e.code==="ArrowDown")this.input.down=true
-if(e.code==="Space")this.input.fire=true
-
-})
-
-window.addEventListener("keyup",(e)=>{
-
-if(e.code==="ArrowUp")this.input.up=false
-if(e.code==="ArrowDown")this.input.down=false
-if(e.code==="Space")this.input.fire=false
-
-})
-
-}
-
-/* ---------------------------- */
-
-spawnEnemy(){
-
-const y=this.canvas.height-40
-
-this.enemies.push(new Enemy(this.canvas.width+100,y))
-
-}
-
-/* ---------------------------- */
-
-spawnExplosion(x,y){
-
-for(let i=0;i<25;i++){
-
-this.particles.push(
-
-new Particle(
-x,
-y,
-(Math.random()-0.5)*10,
-(Math.random()-0.5)*10,
-1.5,
-"orange"
-)
-
-)
-
-}
-
-}
-
-/* ---------------------------- */
-
-update(){
-
-if(!this.running)return
-
-this.frame++
-
-this.player.update(this.input)
-
-/* fire */
-
-if(this.input.fire && this.frame%5===0){
-
-this.bullets.push(
-new Bullet(
-this.player.pos.x+60,
-this.player.pos.y+10
-)
-)
-
-}
-
-/* bullets */
-
-for(let i=this.bullets.length-1;i>=0;i--){
-
-let b=this.bullets[i]
-
-b.update()
-
-if(b.x>this.canvas.width){
-
-this.bullets.splice(i,1)
-
-}
-
-}
-
-/* enemy spawn */
-
-if(Math.random()<CONFIG.spawnChance){
-
-this.spawnEnemy()
-
-}
-
-/* enemies */
-
-for(let i=this.enemies.length-1;i>=0;i--){
-
-let e=this.enemies[i]
-
-e.update()
-
-if(e.x<-100){
-
-this.enemies.splice(i,1)
-
-continue
-
-}
-
-/* collision */
-
-for(let j=this.bullets.length-1;j>=0;j--){
-
-let b=this.bullets[j]
-
-if(Math.abs(b.x-e.x)<40 && Math.abs(b.y-e.y)<40){
-
-this.spawnExplosion(e.x,e.y)
-
-this.enemies.splice(i,1)
-this.bullets.splice(j,1)
-
-break
-
-}
-
-}
-
-}
-
-/* particles */
-
-for(let i=this.particles.length-1;i>=0;i--){
-
-let p=this.particles[i]
-
-p.update()
-
-if(p.life<=0){
-
-this.particles.splice(i,1)
-
-}
-
-}
-
-}
-
-/* ---------------------------- */
-
-draw(){
-
-const ctx=this.ctx
-
-ctx.clearRect(0,0,this.canvas.width,this.canvas.height)
-
-/* sky */
-
-let g=ctx.createLinearGradient(0,0,0,this.canvas.height)
-
-g.addColorStop(0,"#00050a")
-g.addColorStop(1,"#001a33")
-
-ctx.fillStyle=g
-ctx.fillRect(0,0,this.canvas.width,this.canvas.height)
-
-/* bullets */
-
-this.bullets.forEach(b=>b.draw(ctx))
-
-/* enemies */
-
-this.enemies.forEach(e=>e.draw(ctx))
-
-/* particles */
-
-this.particles.forEach(p=>p.draw(ctx))
-
-/* player */
-
-this.player.draw(ctx)
-
-}
-
-/* ---------------------------- */
-
-loop(time){
-
-let dt=time-this.lastTime
-
-this.lastTime=time
-
-this.update()
-
-this.draw()
-
-requestAnimationFrame((t)=>this.loop(t))
-
-}
-
-}
-
-/* =====================================================
-   BOOT
-===================================================== */
-
-let game
-
-document.getElementById("startBtn").onclick=()=>{
-
-document.getElementById("boot").style.display="none"
-
-game=new Game()
-
-game.running=true
-
-}
-
 </script>
 </body>
 </html>
