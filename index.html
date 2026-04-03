@@ -3,594 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TORNADO ADVANCED STRIKE SIMULATOR - V9</title>
+    <title>TORNADO ADVANCED SIMULATOR V10</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
-        /* SIMULATOR INTERFACE CSS */
         :root {
             --mfd-green: #00ff41;
-            --mfd-bg: rgba(0, 20, 0, 0.9);
+            --mfd-bg: rgba(0, 15, 0, 0.95);
             --warn-red: #ff0000;
             --hud-blue: #00f2ff;
-            --glass: rgba(255, 255, 255, 0.05);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; }
-        body { 
-            background: #000; 
-            font-family: 'Share Tech Mono', monospace;
-            color: var(--mfd-green);
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; overflow: hidden; user-select: none; }
+        body { background: #000; font-family: 'Share Tech Mono', monospace; color: var(--mfd-green); }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
 
-        canvas { 
-            display: block; 
-            position: absolute; 
-            top: 0; left: 0; 
-            z-index: 1;
-            cursor: crosshair;
-        }
-
-        /* MASTER HUD */
-        #sim-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 10;
-            pointer-events: none;
-            border: 2px solid rgba(0, 255, 65, 0.1);
-        }
-
-        /* MULTI-FUNCTION DISPLAYS (MFD) */
+        /* HUD & MFD SYSTEM */
+        #sim-overlay { position: absolute; inset: 0; z-index: 10; pointer-events: none; border: 1px solid rgba(0, 255, 65, 0.05); }
+        
         .mfd-panel {
-            position: absolute;
-            background: var(--mfd-bg);
-            border: 2px solid #222;
-            pointer-events: auto;
-            box-shadow: inset 0 0 15px #000;
+            position: absolute; background: var(--mfd-bg); border: 2px solid #222;
+            padding: 15px; box-shadow: inset 0 0 20px #000; pointer-events: auto;
         }
 
-        /* Top Left: Flight Data Recorder */
-        #mfd-telemetry {
-            top: 20px; left: 20px;
-            width: 280px; height: 180px;
-            padding: 15px;
-            border-top: 5px solid var(--mfd-green);
-        }
+        #mfd-l { top: 20px; left: 20px; width: 260px; border-left: 5px solid var(--mfd-green); }
+        #mfd-r { top: 20px; right: 20px; width: 260px; border-right: 5px solid var(--hud-blue); text-align: right; }
 
-        /* Top Right: Weapon System / Stores Management */
-        #mfd-weapons {
-            top: 20px; right: 20px;
-            width: 280px; height: 180px;
-            padding: 15px;
-            border-top: 5px solid var(--hud-blue);
-            text-align: right;
-        }
-
-        /* Bottom Center: RWR (Radar Warning Receiver) */
-        #rwr-system {
-            bottom: 30px; left: 50%;
-            transform: translateX(-50%);
-            width: 200px; height: 200px;
-            border-radius: 50%;
-            border: 2px solid #333;
-            background: radial-gradient(circle, rgba(0,50,0,0.4) 0%, rgba(0,10,0,1) 100%);
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        .stat-line { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(0,255,65,0.1); }
-        .label { font-size: 10px; text-transform: uppercase; opacity: 0.8; }
+        .stat { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid rgba(0,255,0,0.1); }
+        .label { font-size: 10px; opacity: 0.7; }
         .data { font-family: 'Orbitron'; font-weight: bold; font-size: 1.1rem; }
 
         /* NUKE ALERT */
-        #nuke-ui {
-            margin-top: 10px;
-            padding: 5px;
-            border: 1px dashed var(--warn-red);
-            color: var(--warn-red);
-            display: none;
+        #nuke-alert {
+            display: none; margin-top: 10px; padding: 5px;
+            background: rgba(255, 0, 0, 0.2); border: 1px solid var(--warn-red);
+            color: var(--warn-red); text-align: center; font-weight: bold;
             animation: pulse 0.5s infinite;
         }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-
-        /* START SCREEN */
-        #screen-init {
-            position: fixed; inset: 0;
-            background: #000;
-            z-index: 1000;
-            display: flex; justify-content: center; align-items: center;
+        /* SCREENS */
+        .screen {
+            position: fixed; inset: 0; z-index: 1000; background: #000;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
         }
-
-        .boot-box {
-            width: 600px; padding: 40px;
-            border: 1px solid var(--mfd-green);
-            background: #020502;
+        .terminal {
+            width: 90%; max-width: 600px; padding: 40px; border: 1px solid var(--mfd-green);
+            background: #020502; text-align: center;
         }
-
-        .boot-text { font-size: 12px; line-height: 1.6; margin-bottom: 30px; }
-        .btn-engage {
-            background: transparent; border: 1px solid var(--mfd-green);
-            color: var(--mfd-green); padding: 15px 40px;
-            font-family: 'Orbitron'; font-weight: bold; cursor: pointer;
-            width: 100%; transition: 0.3s;
+        .btn-start {
+            background: transparent; border: 1px solid var(--mfd-green); color: var(--mfd-green);
+            padding: 15px 40px; font-family: 'Orbitron'; cursor: pointer; width: 100%;
+            margin-top: 20px; transition: 0.3s; font-size: 1.2rem;
         }
-        .btn-engage:hover { background: var(--mfd-green); color: #000; }
+        .btn-start:hover { background: var(--mfd-green); color: #000; }
 
-        /* MOBILE OVERRIDES */
-        #mobile-sticks {
-            position: absolute; bottom: 40px; width: 100%;
-            display: none; justify-content: space-between; padding: 0 40px;
+        /* MOBILE CONTROLS */
+        #mobile-ui {
+            position: absolute; bottom: 30px; width: 100%; display: flex;
+            justify-content: space-between; padding: 0 40px; pointer-events: none;
         }
         .joy-btn {
-            width: 90px; height: 90px; border-radius: 50%;
-            background: rgba(255,255,255,0.1); border: 2px solid var(--mfd-green);
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; pointer-events: auto;
+            width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.05);
+            border: 2px solid var(--mfd-green); display: flex; align-items: center;
+            justify-content: center; font-weight: bold; pointer-events: auto; font-size: 10px;
         }
     </style>
 </head>
 <body>
 
     <div id="sim-overlay">
-        <div id="mfd-telemetry" class="mfd-panel">
-            <div class="stat-line"><span class="label">ALT (FT)</span><span id="d-alt" class="data">0</span></div>
-            <div class="stat-line"><span class="label">SPD (KTS)</span><span id="d-spd" class="data">0</span></div>
-            <div class="stat-line"><span class="label">G-FORCE</span><span id="d-g" class="data">1.0</span></div>
-            <div class="stat-line"><span class="label">THRUST</span><span id="d-thr" class="data">0%</span></div>
+        <div id="mfd-l" class="mfd-panel">
+            <div class="stat"><span class="label">ALT (FT)</span><span id="ui-alt" class="data">0</span></div>
+            <div class="stat"><span class="label">SPD (KTS)</span><span id="ui-spd" class="data">0</span></div>
+            <div class="stat"><span class="label">THRUST</span><span id="ui-thr" class="data">0%</span></div>
         </div>
-
-        <div id="mfd-weapons" class="mfd-panel">
-            <div class="stat-line"><span class="label">CREDITS</span><span id="d-cr" class="data" style="color:white">0</span></div>
-            <div class="stat-line"><span class="label">MK-82 BOMBS</span><span id="d-bombs" class="data">0</span></div>
-            <div class="stat-line"><span class="label">AIM-9 MISSILES</span><span id="d-missiles" class="data">READY</span></div>
-            <div id="nuke-ui">TACTICAL NUKE READY [N]</div>
+        <div id="mfd-r" class="mfd-panel">
+            <div class="stat"><span class="label">CREDITS</span><span id="ui-cr" class="data" style="color:#fff">0</span></div>
+            <div class="stat"><span class="label">BOMBS</span><span id="ui-bombs" class="data">0</span></div>
+            <div id="nuke-alert">TACTICAL NUKE READY [N]</div>
         </div>
-
-        <div id="rwr-system">
-            <div style="width: 2px; height: 100%; background: rgba(0,255,0,0.1); position: absolute;"></div>
-            <div style="height: 2px; width: 100%; background: rgba(0,255,0,0.1); position: absolute;"></div>
-            <div id="rwr-ping" style="font-size: 8px; text-align: center;">SCANNING ACTIVE</div>
-        </div>
-
-        <div id="mobile-sticks">
-            <div style="display:flex; gap: 20px;">
-                <div class="joy-btn" id="joy-up">UP</div>
-                <div class="joy-btn" id="joy-dn">DN</div>
+        <div id="mobile-ui">
+            <div style="display:flex; gap:15px">
+                <div class="joy-btn" id="m-up">PITCH UP</div>
+                <div class="joy-btn" id="m-dn">PITCH DN</div>
             </div>
-            <div style="display:flex; gap: 20px;">
-                <div class="joy-btn" id="joy-fire" style="border-color:red; color:red;">FIRE</div>
-                <div class="joy-btn" id="joy-nuke" style="border-color:yellow; color:yellow;">NUKE</div>
+            <div style="display:flex; gap:15px">
+                <div class="joy-btn" id="m-fire" style="border-color:red; color:red">CANNON</div>
+                <div class="joy-btn" id="m-nuke" style="border-color:yellow; color:yellow">NUKE</div>
             </div>
         </div>
     </div>
 
-    <div id="screen-init">
-        <div class="boot-box">
-            <h1 style="font-family: 'Orbitron'; margin-bottom: 20px;">TORNADO IDS V9.2</h1>
-            <div class="boot-text">
-                > INITIALIZING AVIONICS... BUSY<br>
-                > LOADING TERRAIN DEPTH MAPS... COMPLETE<br>
-                > CALIBRATING FLY-BY-WIRE... ACTIVE<br>
-                > LOADING WEAPON STORES: 2x MK-82, 1x BK-27 CANNON<br>
-                > SYSTEM STATUS: MISSION READY
-            </div>
-            <button class="btn-engage" id="btn-start">ENGAGE AFTERBURNER</button>
+    <div id="scr-start" class="screen">
+        <div class="terminal">
+            <h1 style="font-family:'Orbitron'; color:var(--hud-blue); margin-bottom:10px">TORNADO IDS</h1>
+            <p style="font-size:12px; color:#555; text-align:left; margin-bottom:20px">
+                > ENGINE: RB199 MK103... ONLINE<br>
+                > AVIONICS: GROUND FOLLOW RADAR... ACTIVE<br>
+                > WEAPONS: BK27, MK82, B61 NUKE... LOADED<br>
+                > CONTROLS: W/S (Pitch), A/D (Throttle), SPACE (Fire), B (Bomb), N (Nuke)
+            </p>
+            <button class="btn-start" id="start-btn">ENGAGE AFTERBURNER</button>
         </div>
     </div>
 
-    <canvas id="mainCvs"></canvas>
+    <canvas id="cvs"></canvas>
 
 <script>
 /**
- * TORNADO STRIKE SIMULATOR ENGINE (PART 1)
+ * TORNADO ADVANCED SIMULATOR - V10 (FULL INTEGRATED)
  */
 
-const canvas = document.getElementById('mainCvs');
+const canvas = document.getElementById('cvs');
 const ctx = canvas.getContext('2d');
 
-// --- SIMULATION CONFIG ---
+// --- SIM CONFIG ---
 const SIM = {
-    gravity: 0.4,
-    drag: 0.985,
-    lift_coeff: 0.12,
-    max_thrust: 25,
-    world_width: 50000,
-    nuke_price: 10000,
-    bomb_price: 1200
+    gravity: 0.35,
+    drag: 0.988,
+    lift: 0.14,
+    max_speed: 28,
+    nuke_cost: 10000,
+    terrain_segments: 400
 };
 
-// --- GLOBAL STATE ---
+// --- STATE ---
 let isRunning = false;
 let frame = 0;
 let credits = 0;
-let nukeUnlocked = false;
 let cameraX = 0;
-
-// --- ENTITY POOLS ---
-const entities = {
-    bullets: [],
-    bombs: [],
-    nukes: [],
-    particles: [],
-    enemies: [], // Tanks
-    interceptors: [], // Enemy Planes
-    terrain: []
-};
-
-const input = {
-    up: false, down: false, left: false, right: false, 
-    fire: false, bomb: false, nuke: false
-};
+let shake = 0;
 
 // --- CLASSES ---
-
 class Vector {
     constructor(x, y) { this.x = x; this.y = y; }
     add(v) { this.x += v.x; this.y += v.y; return this; }
-    mult(n) { this.x *= n; this.y *= n; return this; }
 }
 
 class Particle {
-    constructor(x, y, vx, vy, life, color, type = 'smoke') {
-        this.pos = new Vector(x, y);
-        this.vel = new Vector(vx, vy);
-        this.life = life;
-        this.maxLife = life;
-        this.color = color;
-        this.type = type;
+    constructor(x, y, vx, vy, life, color) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+        this.life = life; this.color = color;
     }
-    update() {
-        this.pos.add(this.vel);
-        this.life -= 0.02;
-    }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.02; }
 }
 
-class PlayerJet {
-    constructor() {
-        this.pos = new Vector(300, 400);
-        this.vel = new Vector(10, 0);
-        this.angle = 0;
-        this.throttle = 0.5;
-        this.health = 100;
-        this.ammo = 500;
-        this.bombs = 2;
-    }
-
-    // Die detaillierte Zeichnung des Jets kommt in Teil 2
-}
-
-/**
- * WORLD INITIALIZATION
- */
-function initTerrain() {
-    for(let i=0; i < 500; i++) {
-        entities.terrain.push({
-            x: i * 200,
-            y: window.innerHeight - (100 + Math.random() * 250),
-            type: Math.random() > 0.8 ? 'hill' : 'flat'
-        });
-    }
-}
-
-function handleResize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-
-window.addEventListener('resize', handleResize);
-handleResize();
-initTerrain();
-
-// --- INPUT LISTENERS ---
-window.addEventListener('keydown', e => {
-    if(e.code === 'KeyW' || e.code === 'ArrowUp') input.up = true;
-    if(e.code === 'KeyS' || e.code === 'ArrowDown') input.down = true;
-    if(e.code === 'KeyA' || e.code === 'ArrowLeft') input.left = true;
-    if(e.code === 'KeyD' || e.code === 'ArrowRight') input.right = true;
-    if(e.code === 'Space') input.fire = true;
-    if(e.code === 'KeyB') input.bomb = true;
-    if(e.code === 'KeyN') input.nuke = true;
-});
-
-window.addEventListener('keyup', e => {
-    if(e.code === 'KeyW' || e.code === 'ArrowUp') input.up = false;
-    if(e.code === 'KeyS' || e.code === 'ArrowDown') input.down = false;
-    if(e.code === 'KeyA' || e.code === 'ArrowLeft') input.left = false;
-    if(e.code === 'KeyD' || e.code === 'ArrowRight') input.right = false;
-    if(e.code === 'Space') input.fire = false;
-});
-
-document.getElementById('btn-start').onclick = () => {
-    document.getElementById('screen-init').style.display = 'none';
-    isRunning = true;
-    // Der Loop-Start erfolgt in Teil 2
+const player = {
+    pos: new Vector(300, 400),
+    vel: new Vector(10, 0),
+    angle: 0,
+    throttle: 0.5,
+    bombs: 2,
+    dead: false
 };
 
-console.log("SIMULATOR PART 1 LOADED. AWAITING PART 2...");
-</body>
-</html>
-/**
- * TORNADO STRIKE SIMULATOR ENGINE (PART 2)
- */
+const input = { up: false, down: false, left: false, right: false, fire: false, bomb: false, nuke: false };
+const entities = { bullets: [], bombs: [], enemies: [], interceptors: [], particles: [], terrain: [] };
 
-// --- DETAILED ASSETS RENDERING ---
+// --- ENGINE INIT ---
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    entities.terrain = [];
+    for(let i=0; i<SIM.terrain_segments; i++) {
+        entities.terrain.push({ x: i * 150, y: canvas.height - (100 + Math.random() * 280) });
+    }
+}
 
-function drawTornado(ctx, p) {
+function getTerrainY(worldX) {
+    let segment = 150;
+    let idx = Math.floor(worldX / segment) % SIM.terrain_segments;
+    let nextIdx = (idx + 1) % SIM.terrain_segments;
+    let f = (worldX % segment) / segment;
+    return entities.terrain[idx].y * (1 - f) + entities.terrain[nextIdx].y * f;
+}
+
+// --- DRAWING ASSETS ---
+function drawTornado(p) {
     ctx.save();
     ctx.translate(p.pos.x - cameraX, p.pos.y);
     ctx.rotate(p.angle);
 
-    // Schatten (für Tiefenwirkung)
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(-20, 35, 120, 10);
-
-    // Rumpf (Camo-Muster)
-    ctx.fillStyle = '#4a5d4a'; // Olive-Grün
+    // Camo Rumpf
+    ctx.fillStyle = '#4a5d4a';
     ctx.beginPath();
-    ctx.moveTo(-40, 0); ctx.lineTo(100, 0); ctx.lineTo(130, 10);
-    ctx.lineTo(100, 20); ctx.lineTo(-40, 20); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-45, 0); ctx.lineTo(110, 5); ctx.lineTo(110, 15); ctx.lineTo(-45, 20); ctx.closePath();
+    ctx.fill();
 
-    // Camo-Flecken (Dunkelgrau)
-    ctx.fillStyle = '#333';
-    ctx.beginPath(); ctx.ellipse(20, 5, 30, 8, 0, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(70, 12, 20, 6, 0, 0, Math.PI*2); ctx.fill();
-
-    // Schwenkflügel (bewegen sich leicht bei Speed)
-    let sweep = Math.min(0.5, p.vel.x * 0.01);
-    ctx.fillStyle = '#444';
+    // Schwenkflügel (Dynamisch)
+    let sweep = Math.min(25, p.vel.x);
+    ctx.fillStyle = '#3d4b3d';
     ctx.beginPath();
-    ctx.moveTo(30, 10); ctx.lineTo(-10 + (sweep*20), 40); 
-    ctx.lineTo(40 + (sweep*20), 40); ctx.lineTo(60, 10); ctx.fill();
+    ctx.moveTo(20, 10); ctx.lineTo(-10 + sweep, 45); ctx.lineTo(30 + sweep, 45); ctx.lineTo(60, 10);
+    ctx.fill();
 
-    // Cockpit (Blaues Glas-Reflexion)
-    let grad = ctx.createLinearGradient(80, 0, 110, 10);
-    grad.addColorStop(0, '#00f2ff'); grad.addColorStop(1, '#003344');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.ellipse(95, 5, 20, 7, 0, 0, Math.PI*2); ctx.fill();
+    // Cockpit
+    ctx.fillStyle = 'rgba(0, 242, 255, 0.5)';
+    ctx.beginPath(); ctx.ellipse(90, 8, 18, 6, 0, 0, 7); ctx.fill();
 
-    // Triebwerk-Glühen
-    if (frame % 2 === 0) {
-        ctx.fillStyle = p.throttle > 0.8 ? '#fff' : '#ffaa00';
-        ctx.beginPath(); ctx.arc(-42, 10, 5 + p.throttle*10, 0, Math.PI*2); ctx.fill();
+    // Afterburner
+    if(frame % 2 === 0) {
+        let size = 5 + p.throttle * 15;
+        ctx.fillStyle = p.throttle > 0.8 ? '#fff' : '#ff4c00';
+        ctx.beginPath(); ctx.arc(-48, 10, size, 0, 7); ctx.fill();
     }
     ctx.restore();
 }
 
-function drawTank(ctx, x, y) {
-    let relX = x - cameraX;
-    if (relX < -100 || relX > canvas.width + 100) return;
-
-    ctx.fillStyle = '#2d3436';
-    ctx.fillRect(relX - 30, y - 15, 60, 20); // Ketten
-    ctx.fillStyle = '#1e272e';
-    ctx.fillRect(relX - 20, y - 25, 40, 12); // Turm
+function drawTank(x, y) {
+    let rx = x - cameraX;
+    ctx.fillStyle = '#1a1c1a'; ctx.fillRect(rx - 35, y - 15, 70, 15); // Chassis
+    ctx.fillStyle = '#2d302d'; ctx.fillRect(rx - 20, y - 25, 40, 12); // Turm
     ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.moveTo(relX - 10, y - 20); ctx.lineTo(relX - 50, y - 20); ctx.stroke(); // Kanone
+    ctx.beginPath(); ctx.moveTo(rx - 15, y - 20); ctx.lineTo(rx - 55, y - 20); ctx.stroke(); // Rohr
 }
 
-// --- CORE ENGINE LOGIC ---
-
-const player = new PlayerJet();
-
+// --- CORE LOOPS ---
 function update() {
-    if (!isRunning) return;
+    if(!isRunning || player.dead) return;
     frame++;
 
-    // 1. INPUT & PHYSICS
-    if (input.up) player.angle -= 0.04;
-    if (input.down) player.angle += 0.04;
-    if (input.right) player.throttle = Math.min(1.2, player.throttle + 0.01);
-    if (input.left) player.throttle = Math.max(0.2, player.throttle - 0.01);
+    // 1. PHYSICS
+    if(input.up) player.angle -= 0.045;
+    if(input.down) player.angle += 0.045;
+    if(input.right) player.throttle = Math.min(1.2, player.throttle + 0.01);
+    if(input.left) player.throttle = Math.max(0.1, player.throttle - 0.01);
 
-    // Aerodynamik
-    let targetSpeed = player.throttle * SIM.max_thrust;
-    player.vel.x += (targetSpeed - player.vel.x) * 0.05;
+    let targetSpd = player.throttle * SIM.max_speed;
+    player.vel.x += (targetSpd - player.vel.x) * 0.06;
     
-    // Auftriebs-Gleichung: Lift ist abhängig von Speed² und Anstellwinkel
-    let lift = Math.pow(player.vel.x, 1.5) * SIM.lift_coeff * Math.cos(player.angle);
-    player.vel.y += SIM.gravity - lift / 15;
-    player.vel.y += Math.sin(player.angle) * (player.vel.x * 0.5); // Directional thrust
-    player.vel.mult(SIM.drag);
+    // Lift Logic
+    let liftForce = (player.vel.x / SIM.max_speed) * SIM.gravity * 1.1;
+    player.vel.y += SIM.gravity - liftForce;
+    player.vel.y += Math.sin(player.angle) * (player.vel.x * 0.4);
+    player.vel.x *= SIM.drag; player.vel.y *= SIM.drag;
 
     player.pos.add(player.vel);
 
-    // 2. CAMERA TRACKING (Smooth Interpolation)
-    let targetCamX = player.pos.x - 300;
-    cameraX += (targetCamX - cameraX) * 0.1;
+    // 2. CAMERA
+    cameraX += (player.pos.x - 350 - cameraX) * 0.15;
 
-    // 3. COMBAT & WEAPONS
-    if (input.fire && frame % 5 === 0) {
-        entities.bullets.push({ 
-            x: player.pos.x + 100, y: player.pos.y + 10, 
-            vx: player.vel.x + 30, vy: player.angle * 20 
-        });
-    }
-
-    if (input.bomb && frame % 30 === 0 && player.bombs > 0) {
-        entities.bombs.push({ x: player.pos.x + 30, y: player.pos.y + 20, vx: player.vel.x, vy: 5 });
-        player.bombs--;
-    }
-
-    // NUKE LOGIC
-    if (input.nuke && credits >= SIM.nuke_price) {
-        credits -= SIM.nuke_price;
-        entities.nukes.push({ x: player.pos.x, y: player.pos.y, vx: 5, vy: 2 });
-    }
-
-    // 4. ENTITY UPDATES
-    updateEntities();
-
-    // 5. HUD SYNC
-    syncHUD();
-}
-
-function updateEntities() {
-    // Bomben & Physik
-    entities.bombs.forEach((b, i) => {
-        b.vx *= 0.99; b.vy += 0.5;
-        b.x += b.vx; b.y += b.vy;
-        if (b.y > getTerrainY(b.x)) {
-            triggerExplosion(b.x, b.y, 40, '#ff4500');
-            checkDamage(b.x, 150);
-            entities.bombs.splice(i, 1);
-        }
-    });
-
-    // Nuke Update
-    entities.nukes.forEach((n, i) => {
-        n.vy += 0.2; n.x += n.vx; n.y += n.vy;
-        if (n.y > getTerrainY(n.x)) {
-            triggerNukeEffect(n.x, n.y);
-            entities.nukes.splice(i, 1);
-        }
-    });
-
-    // Gegner Spawning
-    if (frame % 120 === 0) entities.enemies.push({ x: player.pos.x + 1500, destroyed: false });
-    
-    // Enemy Jet (Interceptor) Spawning
-    if (frame % 600 === 0) {
-        entities.interceptors.push({ 
-            x: player.pos.x + 2000, y: 200 + Math.random()*300, 
-            vx: -15, vy: 0, health: 50 
-        });
-    }
-
-    entities.interceptors.forEach((enemy, i) => {
-        enemy.x += enemy.vx;
-        // Einfache KI: Verfolgt Spieler-Höhe
-        enemy.vy += (player.pos.y - enemy.y) * 0.01;
-        enemy.y += enemy.vy;
-        enemy.vy *= 0.95;
-
-        // Schießen auf Spieler
-        if (frame % 60 === 0) {
-            entities.bullets.push({ x: enemy.x, y: enemy.y, vx: -25, vy: 0, enemy: true });
-        }
-
-        // Kollision mit Spieler-Bullets
-        entities.bullets.forEach((b, bi) => {
-            if (!b.enemy && Math.hypot(b.x - enemy.x, b.y - enemy.y) < 50) {
-                enemy.health -= 20;
-                entities.bullets.splice(bi, 1);
-            }
-        });
-
-        if (enemy.health <= 0) {
-            triggerExplosion(enemy.x, enemy.y, 100, '#fff');
-            credits += 2000;
-            entities.interceptors.splice(i, 1);
-        }
-    });
-
-    // Check Terrain Crash
-    if (player.pos.y > getTerrainY(player.pos.x) - 20) {
-        location.reload(); // Crash = Restart
-    }
-}
-
-function triggerExplosion(x, y, count, color) {
-    for(let i=0; i<count; i++) {
-        entities.particles.push(new Particle(x, y, (Math.random()-0.5)*15, (Math.random()-0.5)*15, 2, color));
-    }
-}
-
-function triggerNukeEffect(x, y) {
-    // White-Out Flash
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Massive Radien-Zerstörung
-    entities.enemies.forEach(t => t.destroyed = true);
-    entities.interceptors = [];
-    credits += 5000;
-    
-    triggerExplosion(x, y, 500, '#ffaa00');
-    triggerExplosion(x, y, 300, '#ffffff');
-}
-
-function checkDamage(x, radius) {
-    entities.enemies.forEach(t => {
-        if (!t.destroyed && Math.abs(t.x - x) < radius) {
-            t.destroyed = true;
-            credits += 800;
-        }
-    });
-}
-
-function syncHUD() {
-    document.getElementById('d-alt').innerText = Math.floor((canvas.height - player.pos.y) * 10);
-    document.getElementById('d-spd').innerText = Math.floor(player.vel.x * 45);
-    document.getElementById('d-thr').innerText = Math.floor(player.throttle * 100) + "%";
-    document.getElementById('d-cr').innerText = credits.toLocaleString();
-    document.getElementById('d-bombs').innerText = player.bombs;
-    
-    let nukeAlert = document.getElementById('nuke-ui');
-    if (credits >= SIM.nuke_price) nukeAlert.style.display = 'block';
-    else nukeAlert.style.display = 'none';
-}
-
-function draw() {
-    // Background (Parallax Sky)
-    ctx.fillStyle = '#000814';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Stars/Cloud Parallax
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    for(let i=0; i<20; i++) {
-        ctx.fillRect(((i*500) - cameraX * 0.2) % canvas.width, (i*30) % canvas.height, 2, 2);
-    }
-
-    // Terrain
-    ctx.beginPath();
-    ctx.fillStyle = '#0a100a'; ctx.strokeStyle = '#00ff41'; ctx.lineWidth = 2;
-    ctx.moveTo(0, canvas.height);
-    for(let x = cameraX - 100; x < cameraX + canvas.width + 100; x += 100) {
-        ctx.lineTo(x - cameraX, getTerrainY(x));
-    }
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.fill(); ctx.stroke();
-
-    // Units
-    entities.enemies.forEach(t => { if(!t.destroyed) drawTank(ctx, t.x, t.y); });
-    
-    // Interceptors (Gegner-Jets)
-    entities.interceptors.forEach(e => {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(e.x - cameraX, e.y, 40, 10); // Platzhalter für Mig-29 Design
-    });
-
-    // Projectiles
-    ctx.fillStyle = '#00f2ff';
-    entities.bullets.forEach(b => ctx.fillRect(b.x - cameraX, b.y, 15, 3));
-    
-    // Bomben
-    ctx.fillStyle = '#444';
-    entities.bombs.forEach(b => {
-        ctx.beginPath(); ctx.ellipse(b.x - cameraX, b.y, 10, 5, 0, 0, Math.PI*2); ctx.fill();
-    });
-
-    // Particles
-    entities.particles.forEach((p, i) => {
-        p.update();
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(p.pos.x - cameraX, p.pos.y, 4, 4);
-        if(p.life <= 0) entities.particles.splice(i, 1);
-    });
-    ctx.globalAlpha = 1.0;
-
-    // Player
-    drawTornado(ctx, player);
-}
-
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-}
-
-// Start Command
-document.getElementById('btn-start').addEventListener('click', () => {
-    loop();
-});
-</script>
+    // 3. WEAPONS
+    if(input.fire && frame % 6 === 0
